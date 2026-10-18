@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POCABIN</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',system-ui,sans-serif}
+:root{--bg:#F6F6F8;--card:#FFF;--slot:#F5F5F7;--border:#EFEFEF;--pink:#FF7A9A;--black:#111;--gray:#8A8A8E;--dot:#DDDDDF}
+body{background:var(--bg);min-height:100vh;display:flex;justify-content:center}
+.app{width:100%;max-width:430px;min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+.center-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;gap:18px;min-height:100vh}
+.heart{font-size:28px;animation:heartPulse 1.6s infinite}
+@keyframes heartPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.input-wrap{width:100%;max-width:280px}
+.main-input{width:100%;padding:11px 18px;border-radius:999px;border:1.5px solid #E9E9EB;background:white;outline:none;text-align:center;font-size:14px}
+.main-input:focus{border-color:var(--pink)}
+.btn-black{width:100%;max-width:280px;padding:11px;border-radius:999px;border:0;background:#111;color:white;font-weight:600;font-size:14px;cursor:pointer}
+.binder-screen{padding:18px;flex:1;display:flex;flex-direction:column}
+.binder-header{display:flex;justify-content:space-between;margin-bottom:18px}
+.title{font-weight:900;letter-spacing:1.2px;font-size:16px}
+.subtitle{font-size:11px;color:#8A8A8E;margin-top:3px}
+.binder-card{width:100%;max-width:320px;background:white;border-radius:22px;box-shadow:0 8px 30px rgba(0,0,0,.06);border:1px solid #EFEFEF;padding:14px;margin:0 auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.slot{aspect-ratio:0.68/1;background:#F5F5F7;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;border:1px solid #F0F0F2}
+.slot img{width:100%;height:100%;object-fit:cover}
+.dots{display:flex;justify-content:center;gap:8px;margin-top:18px}
+.dot{height:7px;width:7px;border-radius:999px;background:#DDD}
+.dot.on{width:22px;background:#111}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal-box{background:white;border-radius:18px;padding:18px;width:100%;max-width:300px}
+.btn-ghost{width:100%;padding:10px;border-radius:999px;border:1px solid #EFEFEF;background:white;margin-top:10px}
+.btn-danger{padding:10px;border-radius:999px;border:0;background:#FFE1E8;color:#D94A67;font-weight:700}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<input type="file" id="filePicker" class="hidden" accept="image/*">
+<script>
+const KEY='pocabin_v2';let state=JSON.parse(localStorage.getItem(KEY)||'{"binders":[],"current":null,"page":0}');let pending=null;
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function uid(){return Date.now()+Math.random()}
+function render(){
+ const app=document.getElementById('app');
+ if(!state.binders.length||state.current===null){
+  app.innerHTML=`<div class="center-screen"><div class="heart">❤️</div><div class="input-wrap"><input id="bn" class="main-input" placeholder="Nome do binder"></div><button class="btn-black" onclick="createBinder()">Criar binder</button></div>`;return;
+ }
+ const binder=state.binders.find(b=>b.id===state.current);
+ const page=binder.pages[state.page];
+ app.innerHTML=`<div class="binder-screen"><div class="binder-header"><div><div class="title">POCABIN</div><div class="subtitle">${binder.pages.length} Pages of ${binder.name}</div></div><div onclick="openMenu()">•••</div></div><div class="binder-card"><div class="grid">${page.map((src,i)=>`<div class="slot" onclick="openPick(${i})">${src?`<img src="${src}">`:`+`}</div>`).join('')}</div></div><div class="dots">${binder.pages.map((_,i)=>`<div class="dot ${i===state.page?'on':''}" onclick="goPage(${i})"></div>`).join('')}<div onclick="addPage()" style="margin-left:8px">+</div></div></div>`;
+}
+function createBinder(){const v=document.getElementById('bn').value.trim()||'Meu binder';const id=uid();state.binders.push({id,name:v,pages:[[null,null,null,null]]});state.current=id;state.page=0;save();render();}
+function openPick(i){pending=i;document.getElementById('filePicker').click();}
+document.getElementById('filePicker').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{state.binders.find(b=>b.id===state.current).pages[state.page][pending]=r.result;save();render();};r.readAsDataURL(f);e.target.value='';});
+function goPage(i){state.page=i;save();render();}
+function addPage(){const b=state.binders.find(b=>b.id===state.current);b.pages.push([null,null,null,null]);state.page=b.pages.length-1;save();render();}
+function openMenu(){const bg=document.createElement('div');bg.className='modal-bg';bg.id='m';bg.innerHTML=`<div class="modal-box"><div class="binder-list"><div onclick="addPage();closeM()">➕ Nova página</div><br><div onclick="closeM();state.current=null;save();render();">📚 Novo binder</div><br><div style="color:red" onclick="confirmDel()">🗑️ Apagar página</div></div><button class="btn-ghost" onclick="closeM()">Fechar</button></div>`;document.body.appendChild(bg);}
+function closeM(){document.getElementById('m')?.remove();}
+function confirmDel(){closeM();if(confirm('Apagar página?')){const b=state.binders.find(x=>x.id===state.current);if(b.pages.length<=1)b.pages=[[null,null,null,null]];else b.pages.splice(state.page,1);if(state.page>=b.pages.length)state.page=b.pages.length-1;save();render();}}
+render();
+</script>
+</body>
+</html>
